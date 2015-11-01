@@ -15,21 +15,21 @@ class ATM extends Eloquent {
 			return false;
 		}
     }	
-	public function getATM($id){
-		$rd = DB::collection($this->getTable())->where('_id',$id);
+	public function getATM($aid){
+		$rd = DB::collection($this->getTable())->where('_id',$aid)->orwhere('Place',$aid);
 		return $rd->get();
     }
 	public function getAllATM(){
 		$rd = DB::collection($this->getTable());
 		return $rd->get();
     }
-	public function editATM($post,$id){
-		$rd = DB::collection($this->getTable())->where('_id',$id);
+	public function editATM($post,$aid){
+		$rd = DB::collection($this->getTable())->where('_id',$aid);
 		$rd->update($post);
 		return $rd->get();
     }
-	public function removeATM($id){
-		$rd = DB::collection($this->getTable())->where('_id',$id);
+	public function removeATM($aid){
+		$rd = DB::collection($this->getTable())->where('_id',$aid);
 		$rd->delete();
 		return $rd->get();
     }

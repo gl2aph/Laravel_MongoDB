@@ -23,13 +23,13 @@ class testCon extends Controller
 		$check = Validator::make($request->all(), ['Name' => 'required' , 'Amount' => 'required|integer|min:1']);
 		if($check->fails()){
 			if(!($request->has('Name'))){
-				return response(array('message'=>'Please insert Name'));
+				return response(['status'=>'Please insert Name']);
 			}
 			else if(!($request->has('Amount'))){
-				return response(array('message'=>'Please insert Amount value'));
+				return response(['status'=>'Please insert Amount value']);
 			}
 			else if($request->get('Amount') < 1){
-				return response(array('message'=>'Please insert positive Amount value'));
+				return response(['status'=>'Please insert positive Amount value']);
 			}
 		}else{
 			$account = new Account();
@@ -39,27 +39,25 @@ class testCon extends Controller
 				unset($post['_token']);
 			}
 			$account->addAccount($post);
-			return response(array('message'=>'success'));
+			return response(['status'=>'success']);
 		}
     }
 	public function getAccount($id){
 		$account = new Account();
-		$status = $account->getAccount($id);
-		if(isset($status[0])){
-			return response($status);
-		}
-		else{
-			return response(array('message'=>'Account not found'));
+		$data = $account->getAccount($id);
+		if(isset($data[0])){
+			return response($data);
+		}else{
+			return response(['status'=>'Account not found']);
 		}
     }
 	public function getAllAccount(){
 		$account = new Account();
-		$status = $account->getAllAccount();
-		if(isset($status[0])){
-			return response($status);
-		}
-		else{
-			return response(array('message'=>'Account not found'));
+		$data = $account->getAllAccount();
+		if(isset($data[0])){
+			return response($data);
+		}else{
+			return response(['status'=>'Account not found']);
 		}
     }
 	public function editAccount(Request $request,$id){
@@ -69,218 +67,261 @@ class testCon extends Controller
 			unset($post['_token']);
 		}
 		if($request->has('Amount')){
-			return response(array('message'=>'Can not edit amount value'));
+			return response(['status'=>'Can not edit amount value']);
 		}else{
-			$status = $account->editAccount($post,$id);
-			if(isset($status[0])){
-				return response($status);
-			}
-			else{
-				return response(array('message'=>'Account not found'));
+			$data = $account->getAccount($id);
+			if(isset($data[0])){
+				$status = $account->editAccount($post,$id);
+				return response(['status'=>'success']);
+			}else{
+				return response(['status'=>'Account not found']);
 			}
 		}
     }	
 	public function removeAccount($id){
 		$account = new Account();
-		$rd = $account->removeAccount($id);
-		return response($rd);
+		$data = $account->getAccount($id);
+		if(isset($data[0])){
+			$rd = $account->removeAccount($id);
+			return response(['status'=>'success']);
+		}else{
+			return response(['status'=>'Account not found']);
+		}
     }
 	public function removeAllAccount(){
 		$account = new Account();
-		$rd = $account->removeAllAccount();
-		return response($rd);
-    }
-	public function addWithdraw(Request $request ,$id){
-		$account = new Account();
-		$post = $request->all();
-		$check = Validator::make($request->all(), ['Amount' => 'required|integer|min:1|max:'.$account->getAccount($id)[0]['Amount']]);
-		if($check->fails()){
-			if(!($request->has('Amount'))){
-				return response(array('message'=>'Please insert Amount value'));
-			}
-			else if($request->get('Amount') < 1){
-				return response(array('message'=>'Please insert positive Amount value'));
-			}
-			else if($request->get('Amount') > $account->getAccount($id)[0]['Amount']){
-				return response(array('message'=>'Amount value is more than current amount'));
-			}
-		}
-		else{
-			if(array_key_exists('_token', $post)){
-				unset($post['_token']);
-			}
-			$dt = new dateTime();
-			$input = array('Type'=>'Withdraw') + $post + array('Date' => $dt->format('Y-m-d H:i:s'));
-			$status = $account->addTransaction($input,$id);
-			//update amount value
-			$newamount = intval($account->getAccount($id)[0]['Amount'] - $post['Amount']);
-			$post['Amount'] = strval($newamount);
-			$status = $account->editAccount($post,$id);
+		$data = $account->getAllAccount();
+		if(isset($data[0])){
+			$rd = $account->removeAllAccount();
+			return response(['status'=>'success']);
+		}else{
+			return response(['status'=>'Account not found']);
 		}
     }
-	public function addDeposite(Request $request ,$id){
+	public function addWithdraw($id , $amount){
 		$account = new Account();
-		$post = $request->all();
-		$check = Validator::make($request->all(), ['Amount' => 'required|integer|min:1']);
-		if($check->fails()){
-			if(!($request->has('Amount'))){
-				return response(array('message'=>'Please insert Amount value'));
+		$data = $account->getAccount($id);
+		if(isset($data[0])){
+			$check = Validator::make(['Amount' => $amount], ['Amount' => 'required|integer|min:1|max:'.$data[0]['Amount']]);
+			if($check->fails()){
+				if($amount < 1){
+					return ['status'=>'Please insert positive/integer number for Amount values'];
+				}
+				else if($amount > $account->getAccount($id)[0]['Amount']){
+					return ['status'=>'Amount value is more than current amount'];
+				}
+			}else{
+				$dt = new dateTime();
+				$input = ['Type'=>'Withdraw'] + ['Amount' => $amount] + ['Date' => $dt->format('Y-m-d H:i:s')];
+				$status = $account->addTransaction($input,$id);
+				//update amount value
+				$newamount = intval($data[0]['Amount'] - $amount);
+				$status = $account->editAccount(['Amount' => strval($newamount)],$id);
+				return ['status'=>'success'];
 			}
-			else if($request->get('Amount') < 1){
-				return response(array('message'=>'Please insert positive Amount value'));
-			}
-		}
-		else{
-			if(array_key_exists('_token', $post)){
-				unset($post['_token']);
-			}
-			$dt = new dateTime();
-			$input = array('Type'=>'Deposite') + $post + array('Date' => $dt->format('Y-m-d H:i:s'));
-			$status = $account->addTransaction($input,$id);
-			$newamount = intval($account->getAccount($id)[0]['Amount'] + $post['Amount']);
-			$post['Amount'] = strval($newamount);
-			$status = $account->editAccount($post,$id);
+		}else{
+			return ['status'=>'Account not found'];
 		}
     }
-	public function addTransfer(Request $request ,$id , $id2){
+	public function addDeposite($id , $amount){
 		$account = new Account();
-		$post = $request->all();
-		if(isset($account->getAccount($id)[0]) and isset($account->getAccount($id2)[0])){
-			$check = Validator::make($request->all(), ['Amount' => 'required|integer|min:1|max:'.$account->getAccount($id)[0]['Amount']]);
+		$data = $account->getAccount($id);
+		if(isset($data[0])){
+			$check = Validator::make(['Amount' => $amount], ['Amount' => 'required|integer|min:1']);
 			if($check->fails()){
 				if(!($request->has('Amount'))){
-					return response(array('message'=>'Please insert Amount value'));
+					return ['status'=>'Please insert positive/integer number for Amount values'];
 				}
 				else if($request->get('Amount') < 1){
-					return response(array('message'=>'Please insert positive Amount value'));
+					return ['status'=>'Please insert positive Amount value'];
 				}
-				else if($request->get('Amount') > $account->getAccount($id)[0]['Amount']){
-					return response(array('message'=>'Amount value is more than current amount'));
-				}
-			}
-			else{
-				if(array_key_exists('_token', $post)){
-					unset($post['_token']);
-				}
+			}else{
 				$dt = new dateTime();
-				$input = array('Type'=>'Transfer') + $post + array('To'=>$id2)  + array('Date' => $dt->format('Y-m-d H:i:s'));
+				$input = ['Type'=>'Deposite'] + ['Amount' => $amount] + ['Date' => $dt->format('Y-m-d H:i:s')];
 				$status = $account->addTransaction($input,$id);
-				$newamount = intval($account->getAccount($id)[0]['Amount'] - $post['Amount']);
-				$newamount2 = intval($account->getAccount($id2)[0]['Amount'] + $post['Amount']);
-				$post['Amount'] = strval($newamount);
-				$status = $account->editAccount($post,$id);
-				$post['Amount'] = strval($newamount2);
-				$status = $account->editAccount($post,$id2);
+				$newamount = intval($data[0]['Amount'] + $amount);
+				$status = $account->editAccount(['Amount' => strval($newamount)],$id);
+				return ['status'=>'success'];
+			}
+		}else{
+			return ['status'=>'Account not found'];
+		}
+    }
+	public function addTransfer($id , $id2 , $amount){
+		$account = new Account();
+		$data = $account->getAccount($id);
+		$data2 = $account->getAccount($id2);
+		if(isset($data[0]) and isset($data2[0])){
+			$check = Validator::make(['Amount' => $amount], ['Amount' => 'required|integer|min:1|max:'.$data[0]['Amount']]);
+			if($check->fails()){
+				if(!($request->has('Amount'))){
+					return response(['status'=>'Please insert Amount value']);
+				}
+				else if($request->get('Amount') < 1){
+					return response(['status'=>'Please insert positive Amount value']);
+				}
+				else if($request->get('Amount') > $data[0]['Amount']){
+					return response(['status'=>'Amount value is more than current amount']);
+				}
+			}else{
+				$dt = new dateTime();
+				$input = ['Type'=>'Transfer'] + ['Amount' => $amount] + ['To'=>$id2]  + ['Date' => $dt->format('Y-m-d H:i:s')];
+				$status = $account->addTransaction($input,$id);
+				$newamount = intval($data[0]['Amount'] - $amount);
+				$newamount2 = intval($data2[0]['Amount'] + $amount);
+				$status = $account->editAccount(['Amount' => strval($newamount)],$id);
+				$status = $account->editAccount(['Amount' => strval($newamount2)],$id2);
+				return response(['status'=>'success']);
 			}
 		}
     }
+
 	public function getWithdraw($id){
 		$account = new Account();
-		$data = array_filter($account->getAccount($id)[0]['Transaction'], function ($trans){ return $trans['Type'] == 'Withdraw';});
-		return response($data);
+		$data = $account->getAccount($id);
+		if(isset($data[0])){
+			$data = array_filter($data[0]['Transaction'], function ($trans){ return $trans['Type'] == 'Withdraw';});
+			return response($data);
+		}else{
+			return response(['status'=>'Account not found']);
+		}
     }
 	public function getDeposite($id){
 		$account = new Account();
-		$data = array_filter($account->getAccount($id)[0]['Transaction'], function ($trans){ return $trans['Type'] == 'Deposite';});
-		return response($data);
+		$data = $account->getAccount($id);
+		if(isset($data[0])){
+			$data = array_filter($data[0]['Transaction'], function ($trans){ return $trans['Type'] == 'Deposite';});
+			return response($data);
+		}else{
+			return response(['status'=>'Account not found']);
+		}
     }
 	public function getTransfer($id){
 		$account = new Account();
-		$data = array_filter($account->getAccount($id)[0]['Transaction'], function ($trans){ return $trans['Type'] == 'Transfer';});
-		return response($data);
+		$data = $account->getAccount($id);
+		if(isset($data[0])){
+			$data = array_filter($data[0]['Transaction'], function ($trans){ return $trans['Type'] == 'Transfer';});
+			return response($data);
+		}else{
+			return response(['status'=>'Account not found']);
+		}
     }
 	public function getTransaction($id){
 		$account = new Account();
-		return response($account->getAccount($id)[0]['Transaction']);
+		$data = $account->getAccount($id);
+		if(isset($data[0])){
+			return response($data[0]['Transaction']);
+		}else{
+			return response(['status'=>'Account not found']);
+		}
     }
 
-	public function removeTransaction($id){
-		$account = new Account();
-		return response($account->getAccount($id)[0]['Transaction']);
-    }
 	public function addATM(Request $request){
 		$atm = new ATM();
+		
 		$check = Validator::make($request->all(), ['Place' => 'required' , 'Amount' => 'required|integer|min:1']);
 		if($check->fails()){
 			if(!($request->has('Place'))){
-				return response(array('message'=>'Please insert Place'));
+				return response(['status'=>'Please insert Place']);
 			}
 			else if(!($request->has('Amount'))){
-				return response(array('message'=>'Please insert Amount value'));
+				return response(['status'=>'Please insert Amount value']);
 			}
 			else if($request->get('Amount') < 1){
-				return response(array('message'=>'Please insert positive Amount value'));
+				return response(['status'=>'Please insert positive Amount value']);
 			}
 		}else{
 			$post = $request->all();
+			$data = $atm->getATM($post['Place']);
+			if(isset($data[0])){
+				return response(['status'=>'This place already exist']);
+			}
 			//remove csrf token
 			if(array_key_exists('_token', $post)){
 				unset($post['_token']);
 			}
 			$atm->addATM($post);
-			return response(array('message'=>'success'));
+			return response(['status'=>'success']);
 		}
     }
-	public function getATM($id){
+	public function getATM($aid){
 		$atm = new ATM();
-		$status = $atm->getATM($id);
-		if(isset($rd[0])){
-			return response($status);
-		}
-		else{
-			return response(array('message'=>'ATM not found'));
+		$data = $atm->getATM($aid);
+		if(isset($data[0])){
+			return response($data);
+		}else{
+			return response(['status'=>'ATM not found']);
 		}
     }
 	public function getAllATM(){
 		$atm = new ATM();
-		$status = $atm->getAllATM();
-		if(isset($status[0])){
-			return response($status);
-		}
-		else{
-			return response(array('message'=>'ATM not found'));
+		$data = $atm->getAllATM();
+		if(isset($data[0])){
+			return response($data);
+		}else{
+			return response(['status'=>'ATM not found']);
 		}
     }
-	public function withdrawATM(Request $request , $id){
+
+	public function withdrawATM($aid , $id , $amount){
 		$atm = new ATM();
-		$post = $request->all();
-		if(array_key_exists('_token', $post)){
-			unset($post['_token']);
+		$data = $atm->getATM($aid);
+		if(isset($data[0])){
+			$status = $this->addWithdraw($id , $amount);
+			if($status['status'] == 'success'){
+				$newamount = intval($atm->getATM($aid)[0]['Amount'] - $amount);
+				$status = $atm->editATM(['Amount' => strval($newamount)],$aid);
+				return response(['status'=>'success']);
+			}else{
+				return response($status['status']);
+			}
+		}else{
+			return response(['status'=>'ATM not found']);
 		}		
-		$newmount = intval($atm->getATM($id)[0]['Amount'] - $post['Amount']);
-		$post['Amount'] = strval($newmount);
-		$status = $atm->editATM($post,$id);
-		if(isset($status[0])){
-			return response($status);
-		}
-		else{
-			return response(array('message'=>'ATM not found'));
-		}
     }
-	public function depositeATM(Request $request , $id){
+	public function depositeATM($aid , $id , $amount){
 		$atm = new ATM();
-		$post = $request->all();
-		if(array_key_exists('_token', $post)){
-			unset($post['_token']);
-		}		
-		$newmount = intval($atm->getATM($id)[0]['Amount'] + $post['Amount']);
-		$post['Amount'] = strval($newmount);
-		$status = $atm->editATM($post,$id);
-		if(isset($status[0])){
-			return response($status);
-		}
-		else{
-			return response(array('message'=>'ATM not found'));
+		$data = $atm->getATM($aid);
+		if(isset($data[0])){
+			$status = $this->addDeposite($id, $amount);
+			if($status['status'] == 'success'){
+				$newamount = intval($atm->getATM($aid)[0]['Amount'] + $amount);
+				$status = $atm->editATM(['Amount' => strval($newamount)],$aid);			
+				return response(['status'=>'success']);
+			}else{
+				return response($status['status']);
+			}	
+		}else{
+			return response(['status'=>'ATM not found']);
 		}
     }
+	
 	public function removeAllATM(){
 		$atm = new ATM();
-		$status = $atm->removeAllATM();
-		return response($status);
+		$data = $atm->getAllATM();
+		if(isset($data[0])){
+			$status = $atm->removeAllATM();
+			if(isset($status[0])){
+				return response(['status'=>'success']);
+			}else{
+				return response(['status'=>'DB delete failed']);
+			}
+		}else{
+			return response(['status'=>'ATM not found']);
+		}
     }
-	public function removeATM($id){
+	public function removeATM($aid){
 		$atm = new Account();
-		$status = $atm->removeATM($id);
-		return response($status);		
+		$data = $atm->getATM($aid);
+		if(isset($data[0])){
+			$status = $atm->removeATM($aid);
+			if(isset($status[0])){
+				return response(['status'=>'success']);
+			}else{
+				return response(['status'=>'DB delete failed']);
+			}
+		}else{
+			return response(['status'=>'ATM not found']);
+		}			
     }
 }
